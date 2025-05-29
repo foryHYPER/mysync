@@ -7,7 +7,20 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const ONBOARDING_STEPS = [
+type OnboardingField = {
+  name: OnboardingFormKey;
+  label: string;
+  type: "text" | "email";
+  required: boolean;
+};
+
+type OnboardingStep = {
+  key: "company_info" | "contact_info" | "profile_picture" | "finish";
+  label: string;
+  fields: OnboardingField[];
+};
+
+const ONBOARDING_STEPS: OnboardingStep[] = [
   { key: "company_info", label: "Unternehmensdaten", fields: [
     { name: "name", label: "Firmenname", type: "text", required: true },
     { name: "address", label: "Adresse", type: "text", required: false },
@@ -19,21 +32,55 @@ const ONBOARDING_STEPS = [
     { name: "contact_phone", label: "Telefon", type: "text", required: false },
   ]},
   { key: "profile_picture", label: "Firmenlogo", fields: [
-    { name: "logo", label: "Logo (URL)", type: "text", required: false }, // Fileupload wäre extra
+    { name: "logo", label: "Logo (URL)", type: "text", required: false },
   ]},
   { key: "finish", label: "Abschließen", fields: [] },
 ];
 
+type CompanyData = {
+  id: string;
+  name: string;
+  address: string;
+  website: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  logo: string;
+  availability: string;
+  onboarding_steps?: Record<string, boolean>;
+  onboarding_status: string;
+  onboarding_progress?: number;
+};
+
+type OnboardingFormData = {
+  name: string;
+  address: string;
+  website: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  logo: string;
+};
+
+type OnboardingFormKey = keyof OnboardingFormData;
+
 export default function OnboardingPage() {
   const router = useRouter();
   const profile = useProfile();
-  const [company, setCompany] = useState<any>(null);
+  const [company, setCompany] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({});
-  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<OnboardingFormData>({
+    name: "",
+    address: "",
+    website: "",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
+    logo: ""
+  });
   const [editContact, setEditContact] = useState(false);
   const [contactPrefilled, setContactPrefilled] = useState(false);
 
@@ -41,7 +88,7 @@ export default function OnboardingPage() {
     const fetchCompany = async () => {
       setLoading(true);
       const supabase = createClient();
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("companies")
         .select("*")
         .eq("id", profile.id)
@@ -69,15 +116,16 @@ export default function OnboardingPage() {
   }, [profile, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const key = name as OnboardingFormKey;
+    setForm(prev => ({ ...prev, [key]: value }));
   };
 
   const handleStepComplete = async () => {
     setSaving(true);
-    setError(null);
     const supabase = createClient();
     const step = ONBOARDING_STEPS[currentStep];
-    let updateData: any = {};
+    let updateData: Partial<OnboardingFormData> = {};
     if (step.key === "company_info") {
       updateData = {
         name: form.name,
@@ -85,7 +133,7 @@ export default function OnboardingPage() {
         website: form.website,
       };
       if (!form.name) {
-        setError("Firmenname ist erforderlich.");
+        console.error("Firmenname ist erforderlich.");
         setSaving(false);
         return;
       }
@@ -96,7 +144,7 @@ export default function OnboardingPage() {
         contact_phone: form.contact_phone,
       };
       if (!form.contact_name || !form.contact_email) {
-        setError("Name und E-Mail sind erforderlich.");
+        console.error("Name und E-Mail sind erforderlich.");
         setSaving(false);
         return;
       }
@@ -128,7 +176,6 @@ export default function OnboardingPage() {
       }
       setCurrentStep((prev) => prev + 1);
     } else {
-      setError("Fehler beim Speichern: " + (updateError.message || "Unbekannter Fehler"));
       console.error("Onboarding Update Error:", updateError);
     }
     setSaving(false);
@@ -221,13 +268,12 @@ export default function OnboardingPage() {
                     id={field.name}
                     name={field.name}
                     type={field.type}
-                    value={form[field.name] || ""}
+                    value={form[field.name]}
                     onChange={handleInputChange}
                     required={field.required}
                   />
                 </div>
               ))}
-              {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
               <div className="flex gap-2 mt-2">
                 <Button
                   type="button"

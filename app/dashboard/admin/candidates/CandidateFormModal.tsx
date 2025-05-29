@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Drawer,
-  DrawerTrigger,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
@@ -18,11 +17,10 @@ import {
   FormItem,
   FormLabel,
   FormControl,
-  FormDescription,
   FormMessage,
   FormField,
 } from "@/components/ui/form";
-import SkillTagInput, { Skill } from "../../candidate/profile/SkillTagInput";
+import SkillTagInput from "../../candidate/profile/SkillTagInput";
 import { useEffect } from "react";
 
 const candidateFormSchema = z.object({
@@ -63,7 +61,7 @@ export default function CandidateFormModal({ open, onOpenChange, initialValues, 
     if (initialValues) {
       form.reset(initialValues);
     }
-  }, [initialValues]);
+  }, [initialValues, form]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>

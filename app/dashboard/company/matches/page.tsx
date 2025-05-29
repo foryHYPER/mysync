@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useProfile } from "@/context/ProfileContext";
 import MatchList from "@/components/matching/MatchList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import { MatchingService } from "@/lib/services/matching";
 import { toast, Toaster } from "sonner";
 import {
@@ -15,21 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function CompanyMatchesPage() {
   const profile = useProfile();
   const [loading, setLoading] = useState(true);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [jobPostings, setJobPostings] = useState<{ id: string; title: string }[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const matchingService = new MatchingService();
+  
+  const matchingService = useMemo(() => new MatchingService(), []);
 
-  useEffect(() => {
-    loadJobPostings();
-  }, [profile.id]);
-
-  const loadJobPostings = async () => {
+  const loadJobPostings = useCallback(async () => {
     if (!profile.id) return;
 
     try {
@@ -42,7 +36,11 @@ export default function CompanyMatchesPage() {
       console.error("Fehler beim Laden der Stellen:", error);
       toast.error("Fehler beim Laden der Stellen");
     }
-  };
+  }, [profile.id, matchingService]);
+
+  useEffect(() => {
+    loadJobPostings();
+  }, [loadJobPostings]);
 
   const handleRefreshMatches = async () => {
     if (!selectedJobId) return;

@@ -1,6 +1,5 @@
 "use client";
 
-import { useProfile } from "@/context/ProfileContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AccountSection from "./AccountSection";
 import AppearanceSection from "./AppearanceSection";
@@ -9,7 +8,6 @@ import DisplaySection from "./DisplaySection";
 import { useState } from "react";
 
 export default function CandidateProfilePage() {
-  const profile = useProfile();
   const [tab, setTab] = useState("account");
 
   // Hier kannst du weitere Daten laden, aber NICHT nochmal Sidebar oder user bauen!

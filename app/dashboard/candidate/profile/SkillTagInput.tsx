@@ -13,22 +13,19 @@ export default function SkillTagInput({ value, onChange }: {
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     async function fetchSkills() {
       setLoading(true);
-      const { data, error } = await supabase.from("skills").select("id, name").order("name");
+      const { data } = await supabase.from("skills").select("id, name").order("name");
       if (data) setAllSkills(data);
       setLoading(false);
     }
     fetchSkills();
-    // eslint-disable-next-line
-  }, []);
+  }, [supabase]);
 
   const addSkill = async (name: string) => {
-    setError(null);
     name = name.trim();
     if (!name) return;
     // Prüfen, ob Skill schon existiert
@@ -37,14 +34,12 @@ export default function SkillTagInput({ value, onChange }: {
       // Skill in DB anlegen
       const { data, error } = await supabase.from("skills").insert({ name }).select("id, name").single();
       if (error) {
-        setError("Skill konnte nicht angelegt werden: " + error.message);
         return;
       }
       if (data) {
         skill = data;
         setAllSkills((prev) => [...prev, skill!]);
       } else {
-        setError("Skill konnte nicht angelegt werden (keine Rückgabe von Supabase).");
         return;
       }
     }
@@ -104,7 +99,6 @@ export default function SkillTagInput({ value, onChange }: {
           ))}
         </div>
       )}
-      {error && <div className="text-red-500 mt-2">{error}</div>}
     </div>
   );
 } 

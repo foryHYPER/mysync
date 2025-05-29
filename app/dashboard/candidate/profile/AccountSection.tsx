@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField } from "@/components/ui/form";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
-import SkillTagInput, { Skill } from "./SkillTagInput";
+import SkillTagInput from "./SkillTagInput";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,31 @@ const accountFormSchema = z.object({
 });
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
+
+type SupabaseCandidateResponse = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  resume_url: string | null;
+  profile_photo_url: string | null;
+  availability: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type SupabaseSkillResponse = {
+  skill_id: string;
+  skills: {
+    name: string;
+    id: string;
+  };
+};
+
+const EMAIL_DESCRIPTION = 'Deine E-Mail-Adresse (nicht &quot;änderbar&quot;).';
+const AVAILABILITY_DESCRIPTION = 'Wähle ein Datum oder setze die Checkbox für &quot;Ab sofort&quot;.';
 
 export default function AccountSection() {
   const [loading, setLoading] = useState(true);
@@ -49,11 +74,11 @@ export default function AccountSection() {
         .from("candidates")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .single() as { data: SupabaseCandidateResponse | null };
       const { data: skillRows } = await supabase
         .from("candidate_skills")
         .select("skill_id, skills(name, id)")
-        .eq("candidate_id", user.id);
+        .eq("candidate_id", user.id) as { data: SupabaseSkillResponse[] | null };
       setDefaultValues({
         first_name: data?.first_name || "",
         last_name: data?.last_name || "",
@@ -61,7 +86,10 @@ export default function AccountSection() {
         phone: data?.phone || "",
         resume_url: data?.resume_url || "",
         profile_photo_url: data?.profile_photo_url || "",
-        skills: skillRows ? skillRows.map((row: any) => ({ id: row.skills.id, name: row.skills.name })) : [],
+        skills: skillRows ? skillRows.map((row) => ({ 
+          id: row.skills.id, 
+          name: row.skills.name 
+        })) : [],
         availabilityNow: data?.availability === "Ab sofort",
         availabilityDate: data?.availability && data.availability !== "Ab sofort" ? new Date(data.availability) : undefined,
       });
@@ -72,7 +100,10 @@ export default function AccountSection() {
         phone: data?.phone || "",
         resume_url: data?.resume_url || "",
         profile_photo_url: data?.profile_photo_url || "",
-        skills: skillRows ? skillRows.map((row: any) => ({ id: row.skills.id, name: row.skills.name })) : [],
+        skills: skillRows ? skillRows.map((row) => ({ 
+          id: row.skills.id, 
+          name: row.skills.name 
+        })) : [],
         availabilityNow: data?.availability === "Ab sofort",
         availabilityDate: data?.availability && data.availability !== "Ab sofort" ? new Date(data.availability) : undefined,
       });
@@ -180,7 +211,7 @@ export default function AccountSection() {
                     <FormControl>
                       <Input placeholder="E-Mail" {...field} disabled />
                     </FormControl>
-                    <FormDescription>Deine E-Mail-Adresse (nicht änderbar).</FormDescription>
+                    <FormDescription>{EMAIL_DESCRIPTION}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -253,7 +284,7 @@ export default function AccountSection() {
                           type="checkbox"
                           id="availability_now"
                           checked={field.value}
-                          onChange={(e) => field.onChange(e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => field.onChange(e.target.checked)}
                         />
                         <label htmlFor="availability_now" className="text-sm">Ab sofort verfügbar</label>
                       </div>
@@ -295,7 +326,7 @@ export default function AccountSection() {
                         )}
                       />
                     </div>
-                    <FormDescription>Wähle ein Datum oder setze die Checkbox für "Ab sofort".</FormDescription>
+                    <FormDescription>{AVAILABILITY_DESCRIPTION}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -29,6 +29,23 @@ export type CandidateMatch = {
   updated_at: string;
 };
 
+type CandidateData = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  experience: number;
+  location: string;
+  availability: string;
+  candidate_skills?: Array<{
+    skill_id: string;
+    level: number;
+    skills: {
+      name: string;
+    };
+  }>;
+};
+
 // Schema für Job-Anforderungen
 const jobRequirementsSchema = z.object({
   requiredSkills: z.array(z.object({
@@ -78,13 +95,11 @@ export class MatchingService {
     // Berechne Skill-Matches
     const skillMatches: SkillMatch[] = [];
     let totalSkillScore = 0;
-    let requiredSkillsCount = 0;
-    let matchedRequiredSkills = 0;
 
     // Verarbeite erforderliche Skills
     for (const reqSkill of requirements.requiredSkills) {
       const candidateSkill = candidate.candidate_skills?.find(
-        (cs: any) => cs.skills.name.toLowerCase() === reqSkill.name.toLowerCase()
+        (cs: { skills: { name: string } }) => cs.skills.name.toLowerCase() === reqSkill.name.toLowerCase()
       );
 
       const match = candidateSkill && candidateSkill.level >= reqSkill.level;
@@ -98,17 +113,13 @@ export class MatchingService {
         score
       });
 
-      if (reqSkill.required) {
-        requiredSkillsCount++;
-        if (match) matchedRequiredSkills++;
-      }
       totalSkillScore += score;
     }
 
     // Verarbeite bevorzugte Skills
     for (const prefSkill of requirements.preferredSkills) {
       const candidateSkill = candidate.candidate_skills?.find(
-        (cs: any) => cs.skills.name.toLowerCase() === prefSkill.name.toLowerCase()
+        (cs: { skills: { name: string } }) => cs.skills.name.toLowerCase() === prefSkill.name.toLowerCase()
       );
 
       const match = candidateSkill && candidateSkill.level >= prefSkill.level;
@@ -287,7 +298,7 @@ export class MatchingService {
   }
 
   // Holt Kandidaten-Informationen
-  async getCandidate(candidateId: string): Promise<any | null> {
+  async getCandidate(candidateId: string): Promise<CandidateData | null> {
     const { data, error } = await this.supabase
       .from("candidates")
       .select(`
@@ -305,12 +316,13 @@ export class MatchingService {
     
     return {
       id: data.id,
-      name: `${data.first_name} ${data.last_name}`,
+      first_name: data.first_name,
+      last_name: data.last_name,
       email: data.email,
       experience: data.experience || 0,
-      skills: data.candidate_skills?.map((cs: any) => cs.skills.name) || [],
       location: data.location || "",
-      availability: data.availability || ""
+      availability: data.availability || "",
+      candidate_skills: data.candidate_skills
     };
   }
 } 

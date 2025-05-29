@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button";
 import { useProfile } from "@/context/ProfileContext";
 import { useRouter } from "next/navigation";
 
+type Candidate = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  resume_url?: string;
+  profile_photo_url?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export default function AdminResumesPage() {
-  const [candidates, setCandidates] = useState<any[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const profile = useProfile();
   const router = useRouter();

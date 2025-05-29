@@ -9,13 +9,33 @@ import { useProfile } from "@/context/ProfileContext";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
+type Skill = {
+  id: string;
+  name: string;
+};
+
+type Candidate = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  resume_url?: string;
+  profile_photo_url?: string;
+  skills?: Skill[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+type FormData = Partial<Candidate>;
+
 export default function AdminResumeDetailPage() {
   const params = useParams();
   const candidateId = params?.id as string;
-  const [candidate, setCandidate] = useState<any>(null);
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<FormData>({});
   const profile = useProfile();
   const router = useRouter();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -41,14 +61,14 @@ export default function AdminResumeDetailPage() {
     if (candidateId) fetchCandidate();
   }, [candidateId]);
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSave = async () => {
     const supabase = createClient();
     await supabase.from("candidates").update(form).eq("id", candidateId);
-    setCandidate(form);
+    setCandidate(form as Candidate);
     setEditMode(false);
   };
 
@@ -91,7 +111,7 @@ export default function AdminResumeDetailPage() {
     }
 
     // Main content
-    let mainX = sidebarWidth + margin;
+    const mainX = sidebarWidth + margin;
     let mainY = margin;
 
     // Header
@@ -137,7 +157,7 @@ export default function AdminResumeDetailPage() {
       mainY += 18;
       doc.setFontSize(11);
       doc.setTextColor("#222");
-      const skills = candidate.skills.map((s: any) => s.name || s).join(", ");
+      const skills = candidate.skills.map((s: Skill) => s.name).join(", ");
       doc.text(skills, mainX, mainY);
       mainY += lineHeight;
     }
@@ -179,7 +199,7 @@ export default function AdminResumeDetailPage() {
       doc.text(candidate.phone, sidebarWidth / 2, y, { align: "center" });
       y += lineHeight;
     }
-    let mainX = sidebarWidth + margin;
+    const mainX = sidebarWidth + margin;
     let mainY = margin;
     doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
@@ -219,7 +239,7 @@ export default function AdminResumeDetailPage() {
       mainY += 18;
       doc.setFontSize(11);
       doc.setTextColor("#222");
-      const skills = candidate.skills.map((s: any) => s.name || s).join(", ");
+      const skills = candidate.skills.map((s: Skill) => s.name).join(", ");
       doc.text(skills, mainX, mainY);
       mainY += lineHeight;
     }

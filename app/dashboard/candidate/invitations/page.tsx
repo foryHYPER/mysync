@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { getColumns, Invitation } from "./columns";
 import { DataTable } from "@/components/data-table";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,22 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useProfile } from "@/context/ProfileContext";
+
+type RawInvitation = {
+  id: string;
+  companies?: {
+    name: string;
+    logo: string;
+  };
+  job_postings?: {
+    title: string;
+    location: string;
+  };
+  proposed_at: string;
+  location?: string;
+  status: string;
+  message?: string;
+};
 
 const PAGE_SIZE = 5;
 
@@ -28,24 +44,17 @@ export default function CandidateInvitationsPage() {
   const [page, setPage] = useState(0);
   const [details, setDetails] = useState<Invitation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showSuggest, setShowSuggest] = useState(false);
   const [suggestDate, setSuggestDate] = useState("");
   const [suggestTime, setSuggestTime] = useState("");
-  const [suggestConfirmed, setSuggestConfirmed] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadInvitations();
-  }, [profile]);
-
-  const loadInvitations = async () => {
+  const loadInvitations = useCallback(async () => {
     if (!profile?.id) return;
 
     setLoading(true);
-    setError(null);
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("invitations")
         .select(`
           *,
@@ -55,10 +64,8 @@ export default function CandidateInvitationsPage() {
         .eq("candidate_id", profile.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-
       if (data) {
-        const formattedInvitations = data.map((inv: any) => ({
+        const formattedInvitations = data.map((inv: RawInvitation) => ({
           id: inv.id,
           company: inv.companies?.name || "Unbekannt",
           job_title: inv.job_postings?.title || "Unbekannte Position",
@@ -70,13 +77,17 @@ export default function CandidateInvitationsPage() {
         }));
         setInvitations(formattedInvitations);
       }
-    } catch (error) {
-      console.error("Fehler beim Laden der Einladungen:", error);
-      setError("Fehler beim Laden der Einladungen. Bitte versuchen Sie es später erneut.");
+    } catch (err) {
+      console.error("Fehler beim Laden der Einladungen:", err);
+      toast.error("Fehler beim Laden der Einladungen. Bitte versuchen Sie es später erneut.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.id, supabase]);
+
+  useEffect(() => {
+    loadInvitations();
+  }, [loadInvitations]);
 
   const filtered = useMemo(() =>
     invitations.filter(
@@ -118,7 +129,7 @@ export default function CandidateInvitationsPage() {
       toast.success("Einladung angenommen.");
       loadInvitations();
       handleDialogClose();
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Annehmen der Einladung.");
     }
   };
@@ -133,7 +144,7 @@ export default function CandidateInvitationsPage() {
       toast.success("Einladung abgelehnt.");
       loadInvitations();
       handleDialogClose();
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Ablehnen der Einladung.");
     }
   };
@@ -163,18 +174,16 @@ export default function CandidateInvitationsPage() {
       // oder eine Benachrichtigung an das Unternehmen gesendet werden
       toast.success(`Neuer Terminvorschlag: ${suggestDate} ${suggestTime}`);
       handleDialogClose();
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Senden des Terminvorschlags.");
     }
   };
 
   const handleDialogClose = () => {
     setDetails(null);
-    setError(null);
     setShowSuggest(false);
     setSuggestDate("");
     setSuggestTime("");
-    setSuggestConfirmed(false);
   };
 
   if (loading) {
@@ -246,14 +255,7 @@ export default function CandidateInvitationsPage() {
               Alle Informationen zur Einladung.
             </DialogDescription>
           </DialogHeader>
-          {error ? (
-            <div className="text-red-600 py-4">{error}</div>
-          ) : suggestConfirmed ? (
-            <div className="py-8 text-center">
-              <div className="text-green-600 font-semibold mb-2">Ihr Terminvorschlag wurde übermittelt!</div>
-              <Button variant="default" onClick={handleDialogClose}>Schließen</Button>
-            </div>
-          ) : details && (
+          {details && (
             <div className="space-y-2">
               <div><b>Unternehmen:</b> {details.company}</div>
               <div><b>Position:</b> {details.job_title}</div>

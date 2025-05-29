@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -29,18 +28,26 @@ type MatchListProps = {
   onStatusChange?: (matchId: string, status: string) => void;
 };
 
+type CandidateInfo = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  experience: number;
+  skills: string[];
+  location: string;
+  availability: string;
+};
+
 export default function MatchList({ type, id, onStatusChange }: MatchListProps) {
   const [matches, setMatches] = useState<CandidateMatch[]>([]);
-  const [candidates, setCandidates] = useState<Record<string, any>>({});
+  const [candidates, setCandidates] = useState<Record<string, CandidateInfo>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const matchingService = new MatchingService();
+  
+  const matchingService = useMemo(() => new MatchingService(), []);
 
-  useEffect(() => {
-    loadMatches();
-  }, [id]);
-
-  const loadMatches = async () => {
+  const loadMatches = useCallback(async () => {
     if (!id) {
       setError("Keine ID angegeben");
       setLoading(false);
@@ -66,10 +73,19 @@ export default function MatchList({ type, id, onStatusChange }: MatchListProps) 
         const candidateResults = await Promise.all(candidatePromises);
         const candidateMap = candidateResults.reduce((acc, candidate, index) => {
           if (candidate) {
-            acc[matches[index].candidate_id] = candidate;
+            acc[matches[index].candidate_id] = {
+              id: candidate.id,
+              first_name: candidate.first_name,
+              last_name: candidate.last_name,
+              email: candidate.email,
+              experience: candidate.experience,
+              skills: candidate.candidate_skills?.map(cs => cs.skills.name) || [],
+              location: candidate.location,
+              availability: candidate.availability
+            };
           }
           return acc;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, CandidateInfo>);
         setCandidates(candidateMap);
       }
     } catch (error) {
@@ -77,7 +93,11 @@ export default function MatchList({ type, id, onStatusChange }: MatchListProps) 
       setError("Fehler beim Laden der Matches. Bitte versuchen Sie es später erneut.");
     }
     setLoading(false);
-  };
+  }, [type, id, matchingService]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
 
   const handleStatusChange = async (matchId: string, status: string) => {
     try {
@@ -97,7 +117,7 @@ export default function MatchList({ type, id, onStatusChange }: MatchListProps) 
   const getCandidateInfo = (match: CandidateMatch) => {
     const candidate = candidates[match.candidate_id];
     if (!candidate) return "Lade Kandidat...";
-    return `${candidate.name} (${candidate.experience} Jahre Erfahrung)`;
+    return `${candidate.first_name} ${candidate.last_name} (${candidate.experience} Jahre Erfahrung)`;
   };
 
   const getStatusColor = (status: string) => {

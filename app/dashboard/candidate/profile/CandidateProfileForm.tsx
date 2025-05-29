@@ -10,16 +10,33 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-} from "@/components/ui/dropdown-menu";
-import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+
+type SupabaseCandidateResponse = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  resume_url: string | null;
+  profile_photo_url: string | null;
+  availability: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type SupabaseSkillResponse = {
+  skill_id: string;
+  skills: {
+    name: string;
+    id: string;
+  };
+};
 
 export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [form, setForm] = useState({
@@ -34,7 +51,6 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [skills, setSkills] = useState<Skill[]>([]);
   const [availabilityNow, setAvailabilityNow] = useState(false);
   const [availabilityDate, setAvailabilityDate] = useState<Date | undefined>(undefined);
@@ -46,11 +62,11 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("candidates")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .single() as { data: SupabaseCandidateResponse | null };
       if (data) {
         setForm({
           first_name: data.first_name || "",
@@ -73,9 +89,12 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
       const { data: skillRows } = await supabase
         .from("candidate_skills")
         .select("skill_id, skills(name, id)")
-        .eq("candidate_id", user.id);
+        .eq("candidate_id", user.id) as { data: SupabaseSkillResponse[] | null };
       if (skillRows) {
-        setSkills(skillRows.map((row: any) => ({ id: row.skills.id, name: row.skills.name })));
+        setSkills(skillRows.map((row) => ({ 
+          id: row.skills.id, 
+          name: row.skills.name 
+        })));
       }
       setLoading(false);
     }
@@ -83,14 +102,13 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
     // eslint-disable-next-line
   }, []);
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
-    setError("");
     setSuccess(false);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -101,7 +119,7 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
           ? format(availabilityDate, "yyyy-MM-dd")
           : "";
       // Prüfen, ob Kandidat existiert
-      const { data: candidateExists, error: selectError } = await supabase
+      const { data: candidateExists } = await supabase
         .from("candidates")
         .select("id")
         .eq("id", user.id)
@@ -143,19 +161,21 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
         );
       }
       if (updateError) {
-        setError(updateError.message);
-        setSuccess(false);
         console.error("Update/Insert error:", updateError);
+        setSuccess(false);
       } else {
         setSuccess(true);
         if (onSuccess) onSuccess();
       }
-    } catch (err: any) {
-      setError(err.message || "Unbekannter Fehler beim Speichern.");
-      setSuccess(false);
+    } catch (err: unknown) {
       console.error("Submit error:", err);
+      setSuccess(false);
     }
     setSaving(false);
+  };
+
+  const handleSkillChange = (skills: Skill[]) => {
+    setSkills(skills);
   };
 
   if (loading) return <div>Lade Profil...</div>;
@@ -195,7 +215,7 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
               </div>
               <div className="md:col-span-2">
                 <Label className="mb-3 block">Skills</Label>
-                <SkillTagInput value={skills} onChange={setSkills} />
+                <SkillTagInput value={skills} onChange={handleSkillChange} />
               </div>
               <div className="md:col-span-2">
                 <Label className="mb-3 block">Verfügbarkeit</Label>
@@ -252,7 +272,6 @@ export default function CandidateProfileForm({ onSuccess }: { onSuccess?: () => 
               </div>
             </div>
             {success && <div className="text-green-600">Profil erfolgreich gespeichert!</div>}
-            {error && <div className="text-red-500">{error}</div>}
           </CardContent>
           <CardFooter className="justify-end">
             <Button type="submit" disabled={saving}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -8,27 +8,38 @@ import { Button } from "@/components/ui/button";
 import { CandidateMatch } from "@/lib/services/matching";
 import { MatchingService } from "@/lib/services/matching";
 import { createClient } from "@/lib/supabase/client";
-import { FileText, MapPin, Building2, DollarSign, Calendar, Briefcase } from "lucide-react";
+import { MapPin, Building2, DollarSign, Calendar, Briefcase } from "lucide-react";
 import { useProfile } from "@/context/ProfileContext";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { useMemo } from "react";
+
+type JobPosting = {
+  id: string;
+  title: string;
+  description?: string;
+  location?: string;
+  salary_range?: string;
+  companies?: {
+    name: string;
+    logo?: string;
+  };
+  requirements?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type JobPostingsMap = Record<string, JobPosting>;
 
 export default function CandidateMatchesPage() {
   const profile = useProfile();
   const [matches, setMatches] = useState<CandidateMatch[]>([]);
-  const [jobPostings, setJobPostings] = useState<Record<string, any>>({});
+  const [jobPostings, setJobPostings] = useState<JobPostingsMap>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMatch, setSelectedMatch] = useState<CandidateMatch | null>(null);
   const matchingService = useMemo(() => new MatchingService(), []);
   const supabase = useMemo(() => createClient(), []);
 
-  useEffect(() => {
-    loadMatches();
-  }, [profile]);
-
-  const loadMatches = async () => {
+  const loadMatches = useCallback(async () => {
     if (!profile?.id) return;
 
     setLoading(true);
@@ -54,7 +65,7 @@ export default function CandidateMatchesPage() {
           const jobMap = jobs.reduce((acc, job) => {
             acc[job.id] = job;
             return acc;
-          }, {} as Record<string, any>);
+          }, {} as JobPostingsMap);
           setJobPostings(jobMap);
         }
       }
@@ -63,7 +74,11 @@ export default function CandidateMatchesPage() {
       setError("Fehler beim Laden der Matches. Bitte versuchen Sie es später erneut.");
     }
     setLoading(false);
-  };
+  }, [profile?.id, matchingService, supabase]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
 
   const handleStatusChange = async (matchId: string, status: string) => {
     try {
@@ -168,7 +183,9 @@ export default function CandidateMatchesPage() {
           
           return (
             <Card key={match.id} className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => setSelectedMatch(match)}>
+                  onClick={() => {
+                    // Hier könnte eine Bewerbungsfunktion implementiert werden
+                  }}>
               <CardHeader>
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
